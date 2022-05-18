@@ -12,14 +12,11 @@ let package = Package(
             targets: ["AsyncShell"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-async-algorithms", .upToNextMinor(from: "0.0.1")),
     ],
     targets: [
         .target(
             name: "AsyncShell",
-            dependencies: [
-                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-            ]),
+            dependencies: []),
         .testTarget(
             name: "AsyncShellTests",
             dependencies: ["AsyncShell"]),

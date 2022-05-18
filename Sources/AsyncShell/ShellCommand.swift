@@ -15,10 +15,17 @@ extension Shell: ExpressibleByStringLiteral {
 
     public static let bash: Shell = "bash"
     public static let zsh: Shell = "zsh"
+
+    public static let `default`: Shell = {
+        if nil != FileManager.default.executablePath(for: "zsh") {
+            return "zsh"
+        }
+        return "bash"
+    }()
 }
 
 public struct ShellCommand: ExpressibleByStringLiteral, ExpressibleByStringInterpolation {
-    public var shell: Shell = .bash
+    public var shell: Shell = .default
     public private(set) var raw: String
     public private(set) var environment: [String: String] = [:]
 

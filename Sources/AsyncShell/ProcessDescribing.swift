@@ -1,5 +1,4 @@
 import Foundation
-import AsyncAlgorithms
 
 public protocol ProcessDescribing {
     var launchPath: String { get }
@@ -58,42 +57,55 @@ public extension ProcessDescribing {
         return await task.value
     }
 
-    func launchAsEmptyStream<T>(
-        of type: T.Type = T.self,
+    func launch<Result>(
         standardInput: (any ProcessInput)? = nil,
         standardOutput: (any ProcessOutput)? = nil,
-        standardError: (any ProcessOutput)? = nil
-    ) -> AsyncThrowingStream<T, Error> {
-        AsyncThrowingStream {
-            let status = try await launch(
-                standardInput: standardInput,
-                standardOutput: standardOutput,
-                standardError: standardError)
-            guard status == 0 else {
-                throw ProcessError(status: status)
-            }
-            return nil
+        standardError: (any ProcessOutput)? = nil,
+        andPerform sidework: () async throws -> Result
+    ) async throws -> Result {
+        async let status = launch(
+            standardInput: standardInput,
+            standardOutput: standardOutput,
+            standardError: standardError)
+        async let result = sidework()
+
+        guard try await status == 0 else {
+            throw ProcessError(status: try await status)
+        }
+        return try await result
+    }
+
+    @available(macOS 12.0, *)
+    func launchToProcessOutput<Result>(
+        standardInput: (any ProcessInput)? = nil,
+        standardError: (any ProcessOutput)? = nil,
+        process: (FileHandle.AsyncBytes) async throws -> Result
+    ) async throws -> Result {
+        let pipe = Pipe()
+        return try await launch(
+            standardInput: standardInput,
+            standardOutput: pipe,
+            standardError: standardError
+        ) {
+            try await process(pipe.fileHandleForReading.bytes)
         }
     }
-}
 
-@available(macOS 12.0, *)
-extension ProcessDescribing {
-    func launchForBytes()
-    -> AsyncMerge2Sequence<FileHandle.AsyncBytes, AsyncThrowingStream<UInt8, Error>>
-    {
-        let pipe = Pipe()
-        return merge(
-            pipe.fileHandleForReading.bytes,
-            launchAsEmptyStream(standardOutput: pipe))
-    }
-
-    func launchForLines()
-    -> AsyncMerge2Sequence<AsyncLineSequence<FileHandle.AsyncBytes>, AsyncThrowingStream<String, Error>>
-    {
-        let pipe = Pipe()
-        return merge(
-            pipe.fileHandleForReading.bytes.lines,
-            launchAsEmptyStream(standardOutput: pipe))
+    @available(macOS 12.0, *)
+    func launchForString(
+        encoding: String.Encoding = .utf8,
+        standardInput: (any ProcessInput)? = nil,
+        standardError: (any ProcessOutput)? = nil
+    ) async throws -> String {
+        try await launchToProcessOutput(
+            standardInput: standardInput,
+            standardError: standardError
+        ) { bytes in
+            var data = Data()
+            for try await byte in bytes {
+                data.append(byte)
+            }
+            return String(data: data, encoding: encoding)!
+        }
     }
 }
