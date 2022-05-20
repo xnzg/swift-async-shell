@@ -45,4 +45,20 @@ final class MapReduceTests: XCTestCase {
         let min2 = await counter2.min
         XCTAssertEqual(min2, 0)
     }
+
+    func testAllFinished() async {
+        let result = await (1...100).mapReduce(0) {
+            $0
+        } reduce: {
+            $0 += $1
+        }
+        XCTAssertEqual(result, (1...100).reduce(0, +))
+
+        let throwingResult = try! await (1...100).throwingMapReduce(0) {
+            $0
+        } reduce: {
+            $0 += $1
+        }
+        XCTAssertEqual(throwingResult, (1...100).reduce(0, +))
+    }
 }

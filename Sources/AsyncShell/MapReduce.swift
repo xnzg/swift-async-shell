@@ -20,7 +20,7 @@ extension Sequence where Element: Sendable {
 
             for await next in group {
                 reduce(&sum, next)
-                guard let element = i.next() else { break }
+                guard let element = i.next() else { continue }
                 group.addTask { await map(element) }
             }
 
@@ -47,7 +47,7 @@ extension Sequence where Element: Sendable {
 
             for try await next in group {
                 try reduce(&sum, next)
-                guard let element = i.next() else { break }
+                guard let element = i.next() else { continue }
                 group.addTask { try await map(element) }
             }
 
